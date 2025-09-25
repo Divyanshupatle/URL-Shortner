@@ -2,15 +2,15 @@ require('dotenv').config();
 const UrlModel = require("../models/urlModel")
 const shortid = require('shortid')
 let validUrl = require('valid-url');
-const baseUrl = 'http://localhost:3000'
+const baseUrl = process.env.BASE_URL;
 const redis = require('redis');
 
 const client = redis.createClient({
     username: 'default',
-    password: "Rupb8nNpG9HxVYRHUiUuWZYKOvQKistB",
+    password: process.env.REDIS_KEY,
     socket: {
-        host: 'redis-18261.c301.ap-south-1-1.ec2.redns.redis-cloud.com',
-        port: 18261
+        host: process.env.REDDIS_HOST,
+        port: process.env.REDDIS_PORT
     }
 });
 

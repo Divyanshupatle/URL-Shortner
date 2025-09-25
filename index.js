@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const mongoose = require("mongoose");
 const route = require("./src/routes/route");
@@ -12,7 +13,7 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
 
-mongoose.connect("mongodb://localhost:27017/URLDB",
+mongoose.connect(`${process.env.DaTABASE}`,
         { useNewUrlParser: true }
     )
     .then(() => console.log("mongodb connected"))
