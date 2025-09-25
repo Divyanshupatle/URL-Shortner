@@ -1,13 +1,18 @@
 const express = require("express");
-const bodyParser = require("body-Parser");
 const mongoose = require("mongoose");
 const route = require("./src/routes/route");
 const app = express();
 
+// Middleware to parse JSON bodies
+// This is what handles incoming JSON payloads from requests
+app.use(express.json());
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-mongoose.connect("mongodb+srv://Divyanshu:Divyanshu12345@cluster0.2rip3oy.mongodb.net/Url-Shortner?retryWrites=true&w=majority",
+// Middleware to parse URL-encoded bodies
+// This is what handles form submissions and URL quer
+app.use(express.urlencoded({extended: true}));
+
+
+mongoose.connect("mongodb://localhost:27017/URLDB",
         { useNewUrlParser: true }
     )
     .then(() => console.log("mongodb connected"))

@@ -1,29 +1,25 @@
+require('dotenv').config();
 const UrlModel = require("../models/urlModel")
 const shortid = require('shortid')
 let validUrl = require('valid-url');
 const baseUrl = 'http://localhost:3000'
-const redis = require("redis");
-const { promisify } = require("util");
+const redis = require('redis');
 
-//Connect to redis
-
-const redisClient = redis.createClient(
-    14020,
-    "redis-14020.c212.ap-south-1-1.ec2.cloud.redislabs.com",
-    { no_ready_check: true }
-);
-redisClient.auth("pVbprLOd85SalbxsCiRqriIaCDBamEmo", function (err) {
-    if (err) throw err;
+const client = redis.createClient({
+    username: 'default',
+    password: "Rupb8nNpG9HxVYRHUiUuWZYKOvQKistB",
+    socket: {
+        host: 'redis-18261.c301.ap-south-1-1.ec2.redns.redis-cloud.com',
+        port: 18261
+    }
 });
 
-redisClient.on("connect", async function () {
-    console.log("Connected to Redis..");
-});
 
-//Connection setup for redis
+client.on('connect', () => console.log('Redis connected successfully!'));
+client.on('error', (err) => console.log('Redis Error:', err));
 
-const SET_ASYNC = promisify(redisClient.SET).bind(redisClient);
-const GET_ASYNC = promisify(redisClient.GET).bind(redisClient);
+client.connect();
+
 
 
 const creatUrl = async function (req, res) {
@@ -39,19 +35,33 @@ const creatUrl = async function (req, res) {
         if (!validUrl.isUri(longUrl)) {
             return res.status(400).send({ status: false, message: "invalid long URL" })
         }
-        const urlCode = shortid.generate().toLocaleLowerCase()
 
-        let url = await UrlModel.findOne({ longUrl }).select({ longUrl: 1, shortUrl: 1, urlCode: 1, _id: 0 })
-        if (url) {
-            return res.status(200).send({ status: true, data: url })
-        }
+        
+        let existingUrl = await UrlModel.findOne({ longUrl }).select({ longUrl: 1, shortUrl: 1, urlCode: 1, _id: 0 }).lean();
+        
+        if (existingUrl) {
+            return res.status(200).send({ status: true, data: existingUrl });
+        } 
 
-        const shortUrl = baseUrl + '/' + urlCode
+        
+        const urlCode = shortid.generate().toLocaleLowerCase();
+        const shortUrl = baseUrl + '/' + urlCode; 
 
-        url = new UrlModel({ longUrl, shortUrl, urlCode })
-        await url.save()
-        let obj = await UrlModel.findOne({ longUrl }).select({ longUrl: 1, shortUrl: 1, urlCode: 1, _id: 0 })
-        res.status(200).send({ status: true, data: obj })
+    
+        let newUrlDoc = new UrlModel({ longUrl, shortUrl, urlCode });
+        let savedUrl = await newUrlDoc.save();
+
+        
+        const { longUrl: newLongUrl, shortUrl: newShortUrl, urlCode: newUrlCode } = savedUrl;
+
+        res.status(201).send({ 
+            status: true, 
+            data: { 
+                longUrl: newLongUrl, 
+                shortUrl: newShortUrl, 
+                urlCode: newUrlCode 
+            } 
+        });
 
     } catch (err) {
         res.status(500).send({ status: false, message: err })
@@ -61,14 +71,19 @@ const creatUrl = async function (req, res) {
 const getUrl = async function (req, res) {
     try {
 
-        let casheData = await GET_ASYNC(`${req.params.urlCode}`);
+        const {urlCode} = req.params;
 
-        if (casheData) return res.status(302).redirect(casheData);
+        const value = await client.get(urlCode);
 
-        const findURL = await UrlModel.findOne({ urlCode: req.params.urlCode });
+        if(value){
+            return res.status(302).redirect(value);
+        }
+
+
+        const findURL = await UrlModel.findOne({ urlCode: urlCode });
 
         if (findURL) {
-            await SET_ASYNC(`${req.params.urlCode}`, findURL.longUrl);
+            await client.set(urlCode, findURL.longUrl);
             return res.status(302).redirect(findURL.longUrl);
         }
 
